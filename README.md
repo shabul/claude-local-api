@@ -1,5 +1,7 @@
 # claude-local-api
 
+> Run Opus. Run Sonnet. Run Haiku. No API key. No cloud bill. Just your machine.
+
 > Zero-config local Claude API — no key, no port, just a socket.
 
 `claude-local-api` turns the [Claude Code CLI](https://claude.ai/code) into a local API server. It listens on a Unix socket, accepts newline-delimited JSON prompts from any script on the machine, and returns Claude's response. No Anthropic API key needed — auth is handled by your existing Claude Code login. No HTTP server, no dependencies beyond the Python standard library.
