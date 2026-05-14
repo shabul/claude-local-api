@@ -2,5 +2,4 @@ __pycache__/
 *.pyc
 *.pyo
 .DS_Store
-claude_api/tests/results_*.json
 /tmp/claude_api.sock

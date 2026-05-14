@@ -14,12 +14,7 @@ import signal
 import sys
 import time
 
-# Support both `python -m claude_api.server` and direct `python server.py`
-if __name__ == "__main__" and __package__ is None:
-    sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-    __package__ = "claude_api"
-
-from .worker import WorkerPool
+from worker import WorkerPool
 
 SOCKET_PATH = "/tmp/claude_api.sock"
 DEFAULT_MODEL = os.environ.get("CLAUDE_API_MODEL", "haiku")
