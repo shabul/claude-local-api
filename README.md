@@ -16,40 +16,7 @@
   Zero-config local Claude API — no key, no port, just a socket.
 </p>
 
-`claude-local-api` turns the [Claude Code CLI](https://claude.ai/code) into a local API server. It listens on a Unix socket, accepts newline-delimited JSON prompts from any script on the machine, and returns Claude's response. No Anthropic API key needed — auth is handled by your existing Claude Code login. No HTTP server, no dependencies beyond the Python standard library.
-
----
-
-## The Problem
-
-Running `claude "your prompt"` from a shell script works, but every call:
-
-- Spawns a brand-new process (~1–3 s startup before any inference)
-- Loads MCP servers, hooks, memory, and CLAUDE.md from scratch
-- Writes session state to disk
-- Is synchronous — concurrent calls queue up
-
-If you're calling Claude programmatically — from automation, pipelines, or other tools — this overhead adds up fast.
-
----
-
-## The Solution
-
-`claude_api` exposes a Unix socket server that accepts prompts and dispatches them to `claude` subprocesses. A semaphore limits how many processes run simultaneously, preventing resource exhaustion under load.
-
-```
-your script  ──►  Unix socket (/tmp/claude_api.sock)  ──►  concurrency semaphore (N slots)
-                                                              └─ claude subprocess per request
-```
-
-Each subprocess uses flags that minimise startup overhead:
-
-| Flag | What it skips |
-|---|---|
-| `--no-session-persistence` | Disk writes per request |
-| `--tools ""` | Tool enumeration and loading |
-
-The result: **minimal startup cost per request**, nothing else.
+`claude-local-api` turns the [Claude Code CLI](https://claude.ai/code) into a local API server. It listens on a Unix socket, accepts prompts from any script on the machine, and returns Claude's response. No Anthropic API key needed — auth is handled by your existing Claude Code login. No HTTP server, no extra dependencies.
 
 ---
 
@@ -60,167 +27,206 @@ The result: **minimal startup cost per request**, nothing else.
 - **Claude Code CLI** installed and authenticated
 
 ```bash
-# Install Claude Code
 npm install -g @anthropic-ai/claude-code
-
-# Authenticate (one-time)
 claude auth login
 ```
 
-No extra Python packages required — the server and client use only the standard library.
-
 ---
 
-## Quick Start
-
-### 1. Start the server
+## Start the Server
 
 ```bash
-cd claude_api
-python -m claude_api.server
+python server.py
 ```
-
-You'll see:
 
 ```
 [pool] ready — model=haiku, concurrency=3
 [server] listening on /tmp/claude_api.sock
 ```
 
-### 2. Send a prompt
-
-**From the CLI:**
+Set env vars to change the default model or concurrency:
 
 ```bash
-python -m claude_api.client "What is 2 + 2?"
-python -m claude_api.client "Explain RSI" --model sonnet
-python -m claude_api.client "Write a market summary" --model opus
+CLAUDE_API_MODEL=sonnet CLAUDE_API_POOL_SIZE=5 python server.py
 ```
 
-**From Python (anywhere on the machine):**
+---
+
+## Usage
+
+This is a drop-in replacement for any LLM SDK call in your local scripts. The pattern is identical to how you'd use the Anthropic SDK, OpenAI SDK, or Bedrock — call it once, call it in a loop, call it concurrently. The server handles the rest.
+
+### The one function you need
+
+Copy this into any script. No installs, no imports beyond stdlib:
 
 ```python
-import sys
-sys.path.insert(0, "/path/to/claude_api")
-from claude_api import ask
+import socket, json
 
-resp = ask("What is MACD?")
-print(resp["result"])        # the answer
-print(resp["round_trip_ms"]) # total latency including socket
+def ask_claude(prompt: str, model: str = None, timeout: int = 60) -> str:
+    req = {"prompt": prompt}
+    if model:
+        req["model"] = model
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
+        s.settimeout(timeout)
+        s.connect("/tmp/claude_api.sock")
+        s.sendall(json.dumps(req).encode() + b"\n")
+        chunks = []
+        while True:
+            data = s.recv(4096)
+            if not data or b"\n" in data:
+                chunks.append(data)
+                break
+            chunks.append(data)
+    resp = json.loads(b"".join(chunks).decode().strip())
+    if "error" in resp:
+        raise RuntimeError(f"claude error: {resp['error']}")
+    return resp["result"]
 ```
 
-**Raw socket (zero dependencies):**
+### Single call
 
-```bash
-echo '{"prompt": "hello"}' | socat - UNIX-CONNECT:/tmp/claude_api.sock
+```python
+answer = ask_claude("Summarise the risks of this portfolio in two sentences.")
+print(answer)
+```
+
+### Choose your model
+
+```python
+# Fast, cheap — classification, extraction, short answers
+answer = ask_claude("Is this headline bullish or bearish?", model="haiku")
+
+# Balanced — summaries, structured output, moderate reasoning
+report = ask_claude("Write a one-page analysis of Q3 earnings.", model="sonnet")
+
+# Most capable — complex analysis, long-form generation, hard reasoning
+deep = ask_claude("Do a deep multi-factor analysis of this balance sheet.", model="opus")
+```
+
+### Call it in a loop — process a list of items
+
+```python
+headlines = [
+    "Reliance surges 4% on strong refining margins",
+    "Infosys misses Q3 estimates, stock falls 6%",
+    "RBI holds repo rate, markets rally",
+]
+
+for headline in headlines:
+    sentiment = ask_claude(
+        f"Classify as bullish, bearish, or neutral. Reply with one word only.\n\n{headline}",
+        model="haiku"
+    )
+    print(f"{sentiment.strip():10s}  {headline}")
+```
+
+### Structured JSON output
+
+```python
+import json
+
+def ask_json(prompt: str, model: str = "sonnet") -> dict:
+    raw = ask_claude(prompt + "\n\nRespond with valid JSON only. No markdown.", model=model)
+    raw = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+    return json.loads(raw)
+
+result = ask_json(
+    "Analyse: 'Infosys beats Q3 estimates by 8%'. "
+    "Return JSON with keys: sentiment, score (0.0–1.0), reason."
+)
+# {'sentiment': 'positive', 'score': 0.87, 'reason': '...'}
+```
+
+### Concurrent calls — process many items at once
+
+```python
+import asyncio, socket, json
+
+async def ask_claude_async(prompt: str, model: str = "haiku") -> str:
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, lambda: ask_claude(prompt, model))
+
+async def main():
+    stocks = ["RELIANCE", "INFY", "TCS", "HDFC", "WIPRO"]
+    prompts = [f"Give a one-line technical outlook for {s} stock." for s in stocks]
+
+    results = await asyncio.gather(*[ask_claude_async(p) for p in prompts])
+
+    for stock, result in zip(stocks, results):
+        print(f"{stock}: {result}\n")
+
+asyncio.run(main())
+```
+
+The server queues requests beyond the concurrency limit automatically — you don't need to throttle.
+
+### With retry on failure
+
+```python
+import time
+
+def ask_with_retry(prompt: str, model: str = "haiku", retries: int = 3) -> str:
+    for attempt in range(retries):
+        try:
+            return ask_claude(prompt, model=model)
+        except RuntimeError:
+            if attempt == retries - 1:
+                raise
+            time.sleep(2 ** attempt)
 ```
 
 ---
 
-## Configuration
+## Model Reference
 
-| Environment variable | Default | Description |
+| Alias | Model | Best for |
 |---|---|---|
-| `CLAUDE_API_MODEL` | `haiku` | Default model for all pool workers |
-| `CLAUDE_API_POOL_SIZE` | `3` | Number of warm workers to keep alive |
+| `haiku` | claude-haiku-4-5 | Classification, extraction, short answers — fastest |
+| `sonnet` | claude-sonnet-4-6 | Summaries, structured output, moderate reasoning |
+| `opus` | claude-opus-4-7 | Complex analysis, long-form generation, hard reasoning |
 
-```bash
-# Example: use sonnet with 2 workers
-CLAUDE_API_MODEL=sonnet CLAUDE_API_POOL_SIZE=2 python -m claude_api.server
-```
+Start with `haiku`. Upgrade only if the output quality isn't good enough.
 
 ---
 
-## Model Options
-
-Pass `--model` on any request to override the pool default for that call. Spawns a temporary worker (one-off, not pooled).
-
-| Alias | Model |
-|---|---|
-| `haiku` | claude-haiku-4-5 — fastest, lowest cost |
-| `sonnet` | claude-sonnet-4-6 — balanced |
-| `opus` | claude-opus-4-7 — most capable |
-
-Full model IDs also accepted (e.g. `claude-haiku-4-5-20251001`).
-
----
-
-## Wire Protocol
-
-The socket speaks newline-delimited JSON.
-
-**Request:**
-```json
-{"prompt": "your question", "model": "haiku"}
-```
-`model` is optional — omit to use the pool default.
-
-**Response:**
-```json
-{"result": "The answer text", "worker_ms": 412}
-```
-
-**Error:**
-```json
-{"error": "description of what went wrong"}
-```
-
----
-
-## File Structure
-
-```
-claude_api/
-├── server.py     # asyncio Unix socket server + request handler
-├── worker.py     # WorkerPool — concurrency semaphore + claude subprocess per request
-├── client.py     # CLI + importable Python client
-└── README.md
-```
-
----
-
-## Run as a Background Service (optional)
-
-To keep the server running across terminal sessions, use a launchd plist (macOS) or a systemd unit (Linux).
+## Run as a Background Service
 
 **macOS — launchd:**
 
-Create `~/Library/LaunchAgents/com.claude_api.plist`:
+Create `~/Library/LaunchAgents/com.claude-local-api.plist`:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>Label</key>        <string>com.claude_api</string>
+  <key>Label</key>        <string>com.claude-local-api</string>
   <key>ProgramArguments</key>
   <array>
     <string>/usr/bin/python3</string>
-    <string>-m</string>
-    <string>claude_api.server</string>
+    <string>/path/to/claude-local-api/server.py</string>
   </array>
-  <key>WorkingDirectory</key> <string>/path/to/MarketCruise</string>
   <key>RunAtLoad</key>    <true/>
   <key>KeepAlive</key>    <true/>
-  <key>StandardOutPath</key> <string>/tmp/claude_api.log</string>
-  <key>StandardErrorPath</key> <string>/tmp/claude_api.log</string>
+  <key>StandardOutPath</key> <string>/tmp/claude-local-api.log</string>
+  <key>StandardErrorPath</key> <string>/tmp/claude-local-api.log</string>
 </dict>
 </plist>
 ```
 
 ```bash
-launchctl load ~/Library/LaunchAgents/com.claude_api.plist
+launchctl load ~/Library/LaunchAgents/com.claude-local-api.plist
 ```
 
 **Linux — systemd:**
 
 ```ini
 [Unit]
-Description=claude_api Unix socket server
+Description=claude-local-api Unix socket server
 
 [Service]
-ExecStart=/usr/bin/python3 -m claude_api.server
-WorkingDirectory=/path/to/MarketCruise
+ExecStart=/usr/bin/python3 /path/to/claude-local-api/server.py
 Restart=on-failure
 
 [Install]
@@ -228,14 +234,14 @@ WantedBy=default.target
 ```
 
 ```bash
-systemctl --user enable --now claude_api
+systemctl --user enable --now claude-local-api
 ```
 
 ---
 
 ## Limitations
 
-- Unix socket only — not accessible over a network by design (local machine only).
-- Workers share no conversation context between requests (each prompt is stateless).
-- Model override requests (`--model` different from the pool default) spawn a temporary process and pay the full startup cost for that single call.
-- Requires an active Claude Code authentication session (`claude auth login`).
+- Local machine only — the Unix socket is not accessible over a network.
+- Each call is stateless — no conversation memory between requests. Concatenate history into the prompt yourself if you need multi-turn context.
+- No streaming — the server returns the full response once inference is complete.
+- Requires an active Claude Code session (`claude auth login`).
