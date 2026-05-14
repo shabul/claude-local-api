@@ -1,0 +1,120 @@
+{
+  "test": "sequential",
+  "model": "haiku",
+  "num_prompts": 10,
+  "succeeded": 10,
+  "latency_ms": {
+    "min": 6153,
+    "max": 12739,
+    "mean": 9892.1,
+    "median": 10262.5,
+    "p95": 11936,
+    "total_wall": 98921
+  },
+  "tokens_est": {
+    "avg_output": 242.4,
+    "total": 2537
+  },
+  "requests": [
+    {
+      "index": 1,
+      "prompt": "What is the difference between a stock and a bond?",
+      "result_preview": "A **stock** is a share of ownership in a company. When you own a stock, you own ",
+      "worker_ms": 9021,
+      "round_trip_ms": 9022,
+      "prompt_tokens_est": 12,
+      "output_tokens_est": 244,
+      "total_tokens_est": 256
+    },
+    {
+      "index": 2,
+      "prompt": "Explain what RSI means in technical analysis in one paragraph.",
+      "result_preview": "RSI (Relative Strength Index) is a momentum oscillator in technical analysis tha",
+      "worker_ms": 7676,
+      "round_trip_ms": 7676,
+      "prompt_tokens_est": 15,
+      "output_tokens_est": 188,
+      "total_tokens_est": 203
+    },
+    {
+      "index": 3,
+      "prompt": "What does MACD stand for and how is it used?",
+      "result_preview": "MACD stands for **Moving Average Convergence Divergence**. It's a technical anal",
+      "worker_ms": 10903,
+      "round_trip_ms": 10904,
+      "prompt_tokens_est": 11,
+      "output_tokens_est": 319,
+      "total_tokens_est": 330
+    },
+    {
+      "index": 4,
+      "prompt": "Name three candlestick patterns used in trading.",
+      "result_preview": "Here are three common candlestick patterns used in trading:  1. **Hammer** \u2014 A b",
+      "worker_ms": 9621,
+      "round_trip_ms": 9621,
+      "prompt_tokens_est": 12,
+      "output_tokens_est": 203,
+      "total_tokens_est": 215
+    },
+    {
+      "index": 5,
+      "prompt": "What is the P/E ratio and why does it matter?",
+      "result_preview": "The **P/E ratio** (Price-to-Earnings) is a company's stock price divided by its ",
+      "worker_ms": 11109,
+      "round_trip_ms": 11110,
+      "prompt_tokens_est": 11,
+      "output_tokens_est": 313,
+      "total_tokens_est": 324
+    },
+    {
+      "index": 6,
+      "prompt": "Describe what a bull market is in two sentences.",
+      "result_preview": "A bull market is a period when stock prices are rising and investor confidence i",
+      "worker_ms": 6153,
+      "round_trip_ms": 6153,
+      "prompt_tokens_est": 12,
+      "output_tokens_est": 69,
+      "total_tokens_est": 81
+    },
+    {
+      "index": 7,
+      "prompt": "What is the difference between NSE and BSE?",
+      "result_preview": "NSE and BSE are the two major stock exchanges in India:  **NSE (National Stock E",
+      "worker_ms": 12739,
+      "round_trip_ms": 12739,
+      "prompt_tokens_est": 10,
+      "output_tokens_est": 273,
+      "total_tokens_est": 283
+    },
+    {
+      "index": 8,
+      "prompt": "What does 'market capitalisation' mean?",
+      "result_preview": "Market capitalization (or \"market cap\") is the total market value of a company's",
+      "worker_ms": 8364,
+      "round_trip_ms": 8364,
+      "prompt_tokens_est": 9,
+      "output_tokens_est": 192,
+      "total_tokens_est": 201
+    },
+    {
+      "index": 9,
+      "prompt": "Explain what a moving average is.",
+      "result_preview": "A **moving average** is a statistical technique that smooths data by calculating",
+      "worker_ms": 11395,
+      "round_trip_ms": 11396,
+      "prompt_tokens_est": 8,
+      "output_tokens_est": 265,
+      "total_tokens_est": 273
+    },
+    {
+      "index": 10,
+      "prompt": "What is a stop-loss order and when would you use it?",
+      "result_preview": "A **stop-loss order** is an instruction to automatically sell a security when it",
+      "worker_ms": 11936,
+      "round_trip_ms": 11936,
+      "prompt_tokens_est": 13,
+      "output_tokens_est": 358,
+      "total_tokens_est": 371
+    }
+  ]
+}
