@@ -239,6 +239,38 @@ systemctl --user enable --now claude-local-api
 
 ---
 
+## Benchmarks
+
+Measured on macOS (Apple M-series), model: `claude-haiku-4-5`, concurrency: 3.
+
+### Sequential — 10 prompts, one after another
+
+| Metric | Value |
+|---|---|
+| Requests | 10 / 10 succeeded |
+| Total wall time | 98.9 s |
+| Avg latency | 9,892 ms |
+| p50 latency | 10,262 ms |
+| p95 latency | 11,936 ms |
+| Min / Max | 6,153 ms / 12,739 ms |
+
+### Concurrent — 3 users × 5 prompts in parallel
+
+| Metric | Value |
+|---|---|
+| Requests | 15 / 15 succeeded |
+| Total wall time | 62.2 s |
+| Sequential equivalent | 172.9 s |
+| **Speedup** | **2.78×** |
+| Throughput | 0.24 req/s |
+| p50 latency | 11,451 ms |
+| p95 latency | 13,274 ms |
+| Min / Max | 8,103 ms / 14,303 ms |
+
+> Latency is dominated by model inference time, not socket or server overhead. The socket round-trip adds < 5 ms.
+
+---
+
 ## Limitations
 
 - Local machine only — the Unix socket is not accessible over a network.
