@@ -1,8 +1,20 @@
 # claude-local-api
 
-> Run Opus. Run Sonnet. Run Haiku. No API key. No cloud bill. Just your machine.
+<p align="center">
+  <img src="https://img.shields.io/badge/Claude-Opus%20%7C%20Sonnet%20%7C%20Haiku-blueviolet?style=for-the-badge&logo=anthropic&logoColor=white" />
+  <img src="https://img.shields.io/badge/Python-3.11%2B-3776AB?style=for-the-badge&logo=python&logoColor=white" />
+  <img src="https://img.shields.io/badge/Platform-macOS%20%7C%20Linux-lightgrey?style=for-the-badge&logo=apple&logoColor=white" />
+  <img src="https://img.shields.io/badge/Zero%20Dependencies-stdlib%20only-success?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Auth-Claude%20Code%20Login-orange?style=for-the-badge" />
+</p>
 
-> Zero-config local Claude API — no key, no port, just a socket.
+<p align="center">
+  <strong>Run Opus. Run Sonnet. Run Haiku. No API key. No cloud bill. Just your machine.</strong>
+</p>
+
+<p align="center">
+  Zero-config local Claude API — no key, no port, just a socket.
+</p>
 
 `claude-local-api` turns the [Claude Code CLI](https://claude.ai/code) into a local API server. It listens on a Unix socket, accepts newline-delimited JSON prompts from any script on the machine, and returns Claude's response. No Anthropic API key needed — auth is handled by your existing Claude Code login. No HTTP server, no dependencies beyond the Python standard library.
 
